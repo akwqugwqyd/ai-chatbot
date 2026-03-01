@@ -1,0 +1,84 @@
+@import url("https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@300;400;500;600;800&family=Work+Sans&display=swap");
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  /* moving gradient background */
+  /* toned-down dark gradient */
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  background-size: 400% 400%;
+  animation: gradient 20s ease infinite;
+  color: white;
+  font-family: "Roboto Slab", serif;
+}
+
+@keyframes gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* pulse dots styling used on home page */
+.pulse-dot {
+  width: 20px;
+  height: 20px;
+  background: #00fffc;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+.pulse-dot:nth-of-type(2) { animation-delay: 0.3s; }
+.pulse-dot:nth-of-type(3) { animation-delay: 0.6s; }
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+
+.image-inverted {
+  filter: invert(100%);
+}
+.nav-link {
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-right: 10px;
+  margin-left: 10px;
+  padding: 8px 20px;
+  border-radius: 10px;
+  text-decoration: none;
+  letter-spacing: 1px;
+}
+
+/* animated gradient text for logo */
+.logo-text {
+  background: linear-gradient(90deg, #00fffc, #ff00d6, #00fffc);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: logo-gradient 3s ease infinite;
+}
+@keyframes logo-gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.MuiOutlinedInput-input-root.Mui-focused,
+.MuiOutlinedInput-notchedOutline {
+  border-color: white !important;
+}
+
+.rotate {
+  animation: rotation 8s infinite linear;
+}
+
+@keyframes rotation {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(359deg);
+  }
+}
+
+
