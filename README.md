@@ -53,7 +53,8 @@ Each subfolder has its own `package.json` and can be run independently.
    ```bash
    cd ../frontend
    npm install                       # or yarn
-   npm run dev                       # start Vite dev server
+   npm start
+                        # start Vite dev server
    ```
 
 4. Open your browser at `http://localhost:5173` (or the URL Vite prints) and start using the chat interface. Backend runs on port 5000 by default.
