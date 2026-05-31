@@ -373,7 +373,9 @@ const verifyGithubWebhookSignature = (
   signature: string | undefined,
   secret: string | undefined
 ) => {
-  if (!secret) {
+  const webhookSecret = secret?.trim();
+
+  if (!webhookSecret) {
     return true;
   }
 
@@ -381,7 +383,7 @@ const verifyGithubWebhookSignature = (
     return false;
   }
 
-  const expectedSignature = `sha256=${createHmac("sha256", secret)
+  const expectedSignature = `sha256=${createHmac("sha256", webhookSecret)
     .update(rawBody)
     .digest("hex")}`;
   const signatureBuffer = Buffer.from(signature);
@@ -391,6 +393,36 @@ const verifyGithubWebhookSignature = (
     signatureBuffer.length === expectedBuffer.length &&
     timingSafeEqual(signatureBuffer, expectedBuffer)
   );
+};
+
+const getGithubWebhookDiagnostics = (
+  req: Request,
+  rawBody: Buffer | undefined,
+  signature: string | undefined
+) => {
+  const secret = process.env.GITHUB_WEBHOOK_SECRET?.trim();
+
+  return {
+    contentType: req.header("content-type") || null,
+    event: req.header("x-github-event") || null,
+    delivery: req.header("x-github-delivery") || null,
+    hasRawBody: Boolean(rawBody),
+    rawBodyBytes: rawBody?.length || 0,
+    hasSignature256: Boolean(signature),
+    signatureStartsWithSha256: Boolean(signature?.startsWith("sha256=")),
+    webhookSecretConfigured: Boolean(secret),
+    webhookSecretLength: secret?.length || 0,
+    nodeEnv: process.env.NODE_ENV || null,
+    vercel: process.env.VERCEL || null,
+  };
+};
+
+const parseGithubWebhookPayload = (body: any) => {
+  if (typeof body?.payload === "string") {
+    return JSON.parse(body.payload);
+  }
+
+  return body;
 };
 
 const reviewPullRequestFromWebhook = async ({
@@ -734,9 +766,13 @@ export const handleGithubWebhook = async (req: Request, res: Response) => {
       process.env.GITHUB_WEBHOOK_SECRET
     )
   ) {
+    const diagnostics = getGithubWebhookDiagnostics(req, rawBody, signature);
+    console.error("Invalid GitHub webhook signature", diagnostics);
+
     return res.status(401).json({
       success: false,
       message: "Invalid GitHub webhook signature",
+      diagnostics,
     });
   }
 
@@ -754,7 +790,7 @@ export const handleGithubWebhook = async (req: Request, res: Response) => {
     });
   }
 
-  const payload = req.body as {
+  const payload = parseGithubWebhookPayload(req.body) as {
     action?: string;
     pull_request?: { number?: number; html_url?: string; head?: { sha?: string } };
     repository?: {

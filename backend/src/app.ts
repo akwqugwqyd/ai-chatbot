@@ -9,6 +9,13 @@ import { connectToDatabase } from "./db/connection.js";
 
 config();
 const app = express();
+const saveRawBody = (
+  req: express.Request,
+  _res: express.Response,
+  buffer: Buffer
+) => {
+  (req as express.Request & { rawBody?: Buffer }).rawBody = Buffer.from(buffer);
+};
 
 // Security and CORS middleware
 app.use(
@@ -22,14 +29,16 @@ app.use(
 app.use(
   express.json({
     limit: "10mb",
-    verify: (req, _res, buffer) => {
-      (req as express.Request & { rawBody?: Buffer }).rawBody = Buffer.from(
-        buffer
-      );
-    },
+    verify: saveRawBody,
   })
 );
-app.use(express.urlencoded({ limit: "10mb", extended: true }));
+app.use(
+  express.urlencoded({
+    limit: "10mb",
+    extended: true,
+    verify: saveRawBody,
+  })
+);
 app.use(cookieParser(process.env.COOKIE_SECRET));
 
 // Logging middleware
