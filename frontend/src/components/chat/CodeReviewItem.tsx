@@ -30,6 +30,12 @@ const CodeReviewItem = ({ review }: CodeReviewItemProps) => {
   const [expanded, setExpanded] = useState(false);
   const severityInfo = review.severity ? severityColors[review.severity] : null;
   const codeLanguage = review.language || "plaintext";
+  const postedToGithub = review.content.includes("Posted to GitHub:");
+  const operationSummary = postedToGithub
+    ? "Reviewed the pull request diff, generated findings, and posted the review back to GitHub."
+    : review.fileName
+    ? `Reviewed ${review.fileName} and generated actionable findings.`
+    : "Reviewed the submitted code and generated actionable findings.";
 
   if (isUser) {
     return (
@@ -89,7 +95,7 @@ const CodeReviewItem = ({ review }: CodeReviewItemProps) => {
                 padding: "16px",
                 fontSize: "0.84rem",
                 lineHeight: "1.55",
-                maxHeight: "360px",
+                maxHeight: "260px",
                 overflowY: "auto",
                 background: "transparent",
               }}
@@ -146,6 +152,28 @@ const CodeReviewItem = ({ review }: CodeReviewItemProps) => {
       >
         {review.content}
       </Typography>
+
+      <Box
+        sx={{
+          mt: 2,
+          p: 1.25,
+          border: "1px solid #30363d",
+          borderRadius: 1.5,
+          bgcolor: "#0d1117",
+          display: "grid",
+          gap: 0.5,
+        }}
+      >
+        <Typography sx={{ color: "#8b949e", fontSize: "0.76rem", fontWeight: 900 }}>
+          Operation Summary
+        </Typography>
+        <Typography sx={{ color: "#c9d1d9", fontSize: "0.86rem", lineHeight: 1.45 }}>
+          {operationSummary}
+          {review.issuesCount !== undefined && review.issuesCount > 0
+            ? ` ${review.issuesCount} finding${review.issuesCount === 1 ? "" : "s"} detected.`
+            : " No numbered findings detected."}
+        </Typography>
+      </Box>
     </Paper>
   );
 };

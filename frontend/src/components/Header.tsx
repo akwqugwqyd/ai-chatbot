@@ -19,7 +19,15 @@ const Header = () => {
         zIndex: (theme) => theme.zIndex.appBar,
       }}
     >
-      <Toolbar sx={{ display: "flex", width: "100%", px: { xs: 1.5, sm: 2.5 } }}>
+      <Toolbar
+        variant="dense"
+        sx={{
+          display: "flex",
+          width: "100%",
+          minHeight: { xs: 48, sm: 52 },
+          px: { xs: 1.25, sm: 2 },
+        }}
+      >
         <Logo />
         <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1 } }}>
           {auth?.isLoggedIn ? (

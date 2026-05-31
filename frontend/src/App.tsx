@@ -11,7 +11,7 @@ function App() {
   return (
     <main>
       <Header />
-      <Box sx={{ pt: { xs: "56px", sm: "64px" } }}>
+      <Box sx={{ pt: { xs: "48px", sm: "52px" } }}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />

@@ -14,8 +14,8 @@ const Logo = () => {
         <img
           src="openai.png"
           alt="openai"
-          width={"30px"}
-          height={"30px"}
+          width={"24px"}
+          height={"24px"}
           className="image-inverted"
         />
       </Link>
@@ -30,7 +30,7 @@ const Logo = () => {
           whiteSpace: "nowrap",
         }}
       >
-        <span style={{ fontSize: "20px" }}>Aether Review</span>
+        <span style={{ fontSize: "18px" }}>Aether Review</span>
       </Typography>
     </div>
   );

@@ -22,7 +22,8 @@ Format your reviews clearly with:
 - Positive aspects of the code
 - Code examples for fixes when applicable
 
-Be constructive, specific, and respectful in your feedback.`;
+Be constructive, specific, and respectful in your feedback.
+Do not label a finding as critical unless the diff clearly introduces an exploitable security vulnerability, data loss, authentication bypass, severe availability issue, or a likely production outage. Generic suggestions about tests, consistency, or sensitive-data caution should be low or medium severity.`;
 
 const DAILY_REVIEW_LIMIT = Number(process.env.DAILY_REVIEW_LIMIT || 5);
 
@@ -94,8 +95,18 @@ const detectLanguage = (code: string, fileName?: string): string => {
 };
 
 const calculateSeverity = (review: string): "critical" | "high" | "medium" | "low" | "info" => {
-  const criticalKeywords = ["critical", "security", "vulnerability", "crash", "error", "bug"];
-  const highKeywords = ["high", "issue", "problem", "should"];
+  const criticalKeywords = [
+    "authentication bypass",
+    "authorization bypass",
+    "data loss",
+    "data leak",
+    "remote code execution",
+    "sql injection",
+    "xss",
+    "credential exposure",
+    "production outage",
+  ];
+  const highKeywords = ["vulnerability", "crash", "runtime error", "regression"];
   const mediumKeywords = ["consider", "could", "improve", "better"];
 
   const lowerReview = review.toLowerCase();
