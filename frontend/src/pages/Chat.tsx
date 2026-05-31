@@ -240,27 +240,29 @@ const Chat = () => {
             overflow: "hidden",
           }}
         >
-          <Tooltip title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}>
-            <IconButton
-              onClick={() => setSidebarOpen((value) => !value)}
-              sx={{
-                position: "absolute",
-                right: -16,
-                top: 14,
-                width: 32,
-                height: 32,
-                color: "#8b949e",
-                border: "1px solid #30363d",
-                bgcolor: "#111820",
-                zIndex: 4,
-                "&:hover": { color: "#e6edf3", borderColor: "#58a6ff", bgcolor: "#161b22" },
-              }}
-            >
-              <MdChevronLeft />
-            </IconButton>
-          </Tooltip>
+          {sidebarOpen && (
+            <Tooltip title="Hide sidebar">
+              <IconButton
+                onClick={() => setSidebarOpen(false)}
+                sx={{
+                  position: "absolute",
+                  right: 10,
+                  top: 12,
+                  width: 30,
+                  height: 30,
+                  color: "#8b949e",
+                  border: "1px solid #30363d",
+                  bgcolor: "#0d1117",
+                  zIndex: 4,
+                  "&:hover": { color: "#e6edf3", borderColor: "#58a6ff", bgcolor: "#161b22" },
+                }}
+              >
+                <MdChevronLeft />
+              </IconButton>
+            </Tooltip>
+          )}
 
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, p: 0.75 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, p: 0.75, pr: 4.5 }}>
             <Avatar sx={{ bgcolor: blue[700], width: 34, height: 34, fontWeight: 800, fontSize: "0.95rem" }}>
               {initials}
             </Avatar>
@@ -347,8 +349,8 @@ const Chat = () => {
                 sx={{
                   display: { xs: "none", lg: "inline-flex" },
                   position: "absolute",
-                  left: 16,
-                  top: 14,
+                  left: 12,
+                  top: 12,
                   width: 32,
                   height: 32,
                   color: "#8b949e",
