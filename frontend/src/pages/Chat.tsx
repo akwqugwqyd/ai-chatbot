@@ -23,7 +23,6 @@ import {
   MdCode,
   MdLink,
   MdOutlineDelete,
-  MdOutlineReviews,
 } from "react-icons/md";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -231,6 +230,7 @@ const Chat = () => {
           component="aside"
           sx={{
             display: { xs: "none", lg: "flex" },
+            position: "relative",
             flexDirection: "column",
             bgcolor: "#111820",
             borderRight: "1px solid #21262d",
@@ -240,6 +240,26 @@ const Chat = () => {
             overflow: "hidden",
           }}
         >
+          <Tooltip title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}>
+            <IconButton
+              onClick={() => setSidebarOpen((value) => !value)}
+              sx={{
+                position: "absolute",
+                right: -16,
+                top: 14,
+                width: 32,
+                height: 32,
+                color: "#8b949e",
+                border: "1px solid #30363d",
+                bgcolor: "#111820",
+                zIndex: 4,
+                "&:hover": { color: "#e6edf3", borderColor: "#58a6ff", bgcolor: "#161b22" },
+              }}
+            >
+              <MdChevronLeft />
+            </IconButton>
+          </Tooltip>
+
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, p: 0.75 }}>
             <Avatar sx={{ bgcolor: blue[700], width: 34, height: 34, fontWeight: 800, fontSize: "0.95rem" }}>
               {initials}
@@ -314,59 +334,34 @@ const Chat = () => {
         <Box
           sx={{
             minWidth: 0,
-            display: "grid",
-            gridTemplateRows: "auto minmax(0, 1fr)",
+            display: "block",
+            position: "relative",
             height: "100%",
             overflow: "hidden",
           }}
         >
-          <Box
-            sx={{
-              px: { xs: 2, md: 3 },
-              py: 1.25,
-              borderBottom: "1px solid #21262d",
-              bgcolor: "#0d1117",
-              position: "sticky",
-              top: 0,
-              zIndex: 2,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 1.5,
-            }}
-          >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
-              <Tooltip title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}>
-                <IconButton
-                  onClick={() => setSidebarOpen((value) => !value)}
-                  sx={{
-                    display: { xs: "none", lg: "inline-flex" },
-                    color: "#8b949e",
-                    border: "1px solid #30363d",
-                    bgcolor: "#111820",
-                    width: 36,
-                    height: 36,
-                    "&:hover": { color: "#e6edf3", borderColor: "#58a6ff" },
-                  }}
-                >
-                  {sidebarOpen ? <MdChevronLeft /> : <MdChevronRight />}
-                </IconButton>
-              </Tooltip>
-              <Box sx={{ minWidth: 0 }}>
-                <Typography sx={{ fontSize: { xs: "1rem", md: "1.18rem" }, fontWeight: 900 }}>
-                  Review Workspace
-                </Typography>
-                <Typography sx={{ color: "#8b949e", fontSize: "0.82rem" }}>
-                  Paste code, upload a file, or review a GitHub pull request.
-                </Typography>
-              </Box>
-            </Box>
-            <Chip
-              icon={<MdOutlineReviews />}
-              label={`${reviews.filter((review) => review.role === "assistant").length} reviews`}
-              sx={{ display: { xs: "none", sm: "inline-flex" }, bgcolor: "#161b22", color: "#c9d1d9" }}
-            />
-          </Box>
+          {!sidebarOpen && (
+            <Tooltip title="Show sidebar">
+              <IconButton
+                onClick={() => setSidebarOpen(true)}
+                sx={{
+                  display: { xs: "none", lg: "inline-flex" },
+                  position: "absolute",
+                  left: 16,
+                  top: 14,
+                  width: 32,
+                  height: 32,
+                  color: "#8b949e",
+                  border: "1px solid #30363d",
+                  bgcolor: "#111820",
+                  zIndex: 4,
+                  "&:hover": { color: "#e6edf3", borderColor: "#58a6ff", bgcolor: "#161b22" },
+                }}
+              >
+                <MdChevronRight />
+              </IconButton>
+            </Tooltip>
+          )}
 
           <Box
             sx={{
@@ -375,6 +370,7 @@ const Chat = () => {
               gridTemplateRows: "minmax(0, 1fr)",
               overflow: "hidden",
               position: "relative",
+              height: "100%",
             }}
           >
             <Box
@@ -384,7 +380,7 @@ const Chat = () => {
                 overflowY: "auto",
                 px: { xs: 2, md: 3 },
                 py: 2,
-                pb: { xs: 23, md: reviewSource === "github" ? 27 : 19 },
+                pb: { xs: 16, md: reviewSource === "github" ? 18 : 12 },
                 bgcolor: "#0d1117",
               }}
             >
@@ -449,46 +445,8 @@ const Chat = () => {
                   pointerEvents: "auto",
                 }}
               >
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    px: 1,
-                    py: 0.75,
-                    borderBottom: "1px solid #21262d",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  {[
-                    ["code", "Code", <MdCode key="code-icon" />],
-                    ["github", "GitHub PR", <MdLink key="github-icon" />],
-                  ].map(([value, label, icon]) => (
-                    <Button
-                      key={String(value)}
-                      size="small"
-                      startIcon={icon}
-                      onClick={() => setReviewSource(value as "code" | "github")}
-                      sx={{
-                        minHeight: 34,
-                        borderRadius: 1.5,
-                        px: 1.25,
-                        color: reviewSource === value ? "#07111f" : "#c9d1d9",
-                        bgcolor: reviewSource === value ? blue[400] : "#161b22",
-                        border: "1px solid #30363d",
-                        fontWeight: 800,
-                        "&:hover": {
-                          bgcolor: reviewSource === value ? blue[300] : "#21262d",
-                        },
-                      }}
-                    >
-                      {label}
-                    </Button>
-                  ))}
-                </Box>
-
                 {reviewSource === "github" && (
-                  <Box sx={{ px: 1.5, pt: 1.25, display: "grid", gap: 1.25 }}>
+                  <Box sx={{ px: 1, pt: 0.8, display: "grid", gap: 0.75 }}>
                     <TextField
                       value={prUrl}
                       onChange={(event) => setPrUrl(event.target.value)}
@@ -512,7 +470,7 @@ const Chat = () => {
                       sx={{
                         display: "flex",
                         alignItems: "center",
-                        gap: 1.5,
+                        gap: 1,
                         flexWrap: "wrap",
                       }}
                     >
@@ -544,7 +502,7 @@ const Chat = () => {
                           variant="outlined"
                           size="small"
                           sx={{
-                            flex: "1 1 280px",
+                            flex: "1 1 240px",
                             "& .MuiOutlinedInput-root": {
                               color: "#e6edf3",
                               bgcolor: "#0d1117",
@@ -573,8 +531,8 @@ const Chat = () => {
                   value={code}
                   onChange={(event) => setCode(event.target.value)}
                   multiline
-                  minRows={reviewSource === "github" ? 1 : 2}
-                  maxRows={reviewSource === "github" ? 3 : 5}
+                  minRows={1}
+                  maxRows={reviewSource === "github" ? 2 : 4}
                   placeholder={
                     reviewSource === "github"
                       ? "Optional review focus...\nExample: Focus on auth bypasses and migration risk."
@@ -584,8 +542,8 @@ const Chat = () => {
                   InputProps={{ disableUnderline: true }}
                   sx={{
                     width: "100%",
-                    px: 1.25,
-                    pt: 0.9,
+                    px: 1,
+                    pt: 0.75,
                     "& .MuiInputBase-root": {
                       color: "#e6edf3",
                       fontFamily: "Consolas, 'SFMono-Regular', monospace",
@@ -605,7 +563,7 @@ const Chat = () => {
                     alignItems: "center",
                     gap: 1,
                     px: 1,
-                    py: 0.65,
+                    py: 0.55,
                     borderTop: "1px solid #21262d",
                   }}
                 >
@@ -628,6 +586,36 @@ const Chat = () => {
                     </IconButton>
                     </span>
                   </Tooltip>
+
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    {[
+                      ["code", "Code", <MdCode key="code-icon" />],
+                      ["github", "GitHub PR", <MdLink key="github-icon" />],
+                    ].map(([value, label, icon]) => (
+                      <Button
+                        key={String(value)}
+                        size="small"
+                        startIcon={icon}
+                        onClick={() => setReviewSource(value as "code" | "github")}
+                        sx={{
+                          minHeight: 30,
+                          borderRadius: 1.25,
+                          px: 0.9,
+                          color: reviewSource === value ? "#07111f" : "#c9d1d9",
+                          bgcolor: reviewSource === value ? blue[400] : "#161b22",
+                          border: "1px solid #30363d",
+                          fontSize: "0.78rem",
+                          fontWeight: 800,
+                          "& .MuiButton-startIcon": { mr: 0.5 },
+                          "&:hover": {
+                            bgcolor: reviewSource === value ? blue[300] : "#21262d",
+                          },
+                        }}
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                  </Box>
 
                   <Box sx={{ flex: 1 }} />
 
