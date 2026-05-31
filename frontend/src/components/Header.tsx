@@ -1,5 +1,6 @@
 import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
+import Box from "@mui/material/Box";
 import Logo from "./shared/Logo";
 import { useAuth } from "../context/AuthContext";
 import NavigationLink from "./shared/NavigationLink";
@@ -9,50 +10,51 @@ const Header = () => {
   return (
     <AppBar
       sx={{
-        bgcolor: "transparent",
-        position: "fixed", // stays at top when scrolling
-        boxShadow: "none",
+        bgcolor: "rgba(13, 17, 23, 0.92)",
+        position: "fixed",
+        boxShadow: "0 1px 0 rgba(148, 163, 184, 0.14)",
+        backdropFilter: "blur(14px)",
         width: "100%",
         top: 0,
         zIndex: (theme) => theme.zIndex.appBar,
       }}
     >
-      <Toolbar sx={{ display: "flex" }}>
+      <Toolbar sx={{ display: "flex", width: "100%", px: { xs: 1.5, sm: 2.5 } }}>
         <Logo />
-        <div>
+        <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1 } }}>
           {auth?.isLoggedIn ? (
             <>
               <NavigationLink
-                bg="#00fffc"
+                bg="#58a6ff"
                 to="/chat"
-                text="Go To Chat"
-                textColor="black"
+                text="Review"
+                textColor="#07111f"
               />
               <NavigationLink
-                bg="#51538f"
+                bg="#21262d"
                 textColor="white"
                 to="/"
-                text="logout"
+                text="Logout"
                 onClick={auth.logout}
               />
             </>
           ) : (
             <>
               <NavigationLink
-                bg="#00fffc"
+                bg="#58a6ff"
                 to="/login"
                 text="Login"
-                textColor="black"
+                textColor="#07111f"
               />
               <NavigationLink
-                bg="#51538f"
+                bg="#21262d"
                 textColor="white"
                 to="/signup"
                 text="Signup"
               />
             </>
           )}
-        </div>
+        </Box>
       </Toolbar>
     </AppBar>
   );

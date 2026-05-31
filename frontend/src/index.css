@@ -1,16 +1,27 @@
 @import url("https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@300;400;500;600;800&family=Work+Sans&display=swap");
 
+* {
+  box-sizing: border-box;
+}
+
 html,
 body {
   margin: 0;
   padding: 0;
-  /* moving gradient background */
-  /* toned-down dark gradient */
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-  background-size: 400% 400%;
-  animation: gradient 20s ease infinite;
+  background: #0d1117;
   color: white;
-  font-family: "Roboto Slab", serif;
+  font-family: "Work Sans", Arial, sans-serif;
+}
+
+body {
+  min-width: 320px;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }
 
 @keyframes gradient {
@@ -41,13 +52,11 @@ body {
 }
 .nav-link {
   font-weight: 600;
-  text-transform: uppercase;
-  margin-right: 10px;
   margin-left: 10px;
-  padding: 8px 20px;
-  border-radius: 10px;
+  padding: 9px 16px;
+  border-radius: 8px;
   text-decoration: none;
-  letter-spacing: 1px;
+  letter-spacing: 0;
 }
 
 /* animated gradient text for logo */
@@ -63,11 +72,6 @@ body {
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
-.MuiOutlinedInput-input-root.Mui-focused,
-.MuiOutlinedInput-notchedOutline {
-  border-color: white !important;
-}
-
 .rotate {
   animation: rotation 8s infinite linear;
 }
@@ -80,5 +84,3 @@ body {
     transform: rotate(359deg);
   }
 }
-
-

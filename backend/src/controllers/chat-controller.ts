@@ -1,49 +1,26 @@
 import { NextFunction, Request, Response } from "express";
 import User from "../models/User.js";
-import { configureOpenAI } from "../config/openai-config.js";
-import { ChatCompletionMessageParam } from "openai/resources/chat";
 
-export const generateChatCompletion = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  const { message } = req.body;
-  try {
-    const user = await User.findById(res.locals.jwtData.id);
-    if (!user)
-      return res
-        .status(401)
-        .json({ message: "User not registered OR Token malfunctioned" });
+const DAILY_REVIEW_LIMIT = Number(process.env.DAILY_REVIEW_LIMIT || 5);
 
-    // grab chats of user
-    const chats: ChatCompletionMessageParam[] = user.chats.map(({ role, content }) => ({
-  role: role as "system" | "user" | "assistant",
-  content,
-}));
+const getUtcDayStart = (date = new Date()) => {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+  );
+};
 
-chats.push({ role: "user", content: message });
-user.chats.push({ role: "user", content: message });
+const syncDailyReviewWindow = (user: {
+  dailyReviewCount?: number;
+  dailyReviewWindowStart?: Date | null;
+}) => {
+  const today = getUtcDayStart();
+  const windowStart = user.dailyReviewWindowStart
+    ? getUtcDayStart(user.dailyReviewWindowStart)
+    : null;
 
-    // v4 OpenAI client
-    const openai = configureOpenAI();
-
-    // get latest response
-    const chatResponse = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: chats,
-    });
-
-    const reply = chatResponse.choices[0]?.message;
-    if (reply) {
-      user.chats.push(reply);
-    }
-
-    await user.save();
-    return res.status(200).json({ chats: user.chats });
-  } catch (error: any) {
-    console.error(error);
-    return res.status(500).json({ message: "Something went wrong", error: error.message });
+  if (!windowStart || windowStart.getTime() !== today.getTime()) {
+    user.dailyReviewCount = 0;
+    user.dailyReviewWindowStart = today;
   }
 };
 
@@ -55,15 +32,32 @@ export const sendChatsToUser = async (
   try {
     const user = await User.findById(res.locals.jwtData.id);
     if (!user) {
-      return res.status(401).send("User not registered OR Token malfunctioned");
+      return res.status(401).json({
+        message: "User not registered or token is invalid",
+        success: false,
+      });
     }
+
     if (user._id.toString() !== res.locals.jwtData.id) {
-      return res.status(401).send("Permissions didn't match");
+      return res.status(401).json({
+        message: "Insufficient permissions",
+        success: false,
+      });
     }
-    return res.status(200).json({ message: "OK", chats: user.chats });
+
+    return res.status(200).json({
+      message: "Reviews retrieved successfully",
+      success: true,
+      chats: user.chats,
+      reviewsCount: user.reviewsCount,
+    });
   } catch (error: any) {
-    console.error(error);
-    return res.status(200).json({ message: "ERROR", cause: error.message });
+    console.error("Get reviews error:", error);
+    return res.status(500).json({
+      message: "Error retrieving reviews",
+      success: false,
+      error: error.message,
+    });
   }
 };
 
@@ -75,19 +69,93 @@ export const deleteChats = async (
   try {
     const user = await User.findById(res.locals.jwtData.id);
     if (!user) {
-      return res.status(401).send("User not registered OR Token malfunctioned");
+      return res.status(401).json({
+        message: "User not registered or token is invalid",
+        success: false,
+      });
     }
-    if (user._id.toString() !== res.locals.jwtData.id) {
-      return res.status(401).send("Permissions didn't match");
-    }
-    user.chats.splice(0); // instead of user.chats = []
 
+    if (user._id.toString() !== res.locals.jwtData.id) {
+      return res.status(401).json({
+        message: "Insufficient permissions",
+        success: false,
+      });
+    }
+
+    user.chats.splice(0, user.chats.length);
+    user.reviewsCount = 0;
     await user.save();
-    return res.status(200).json({ message: "OK" });
+
+    return res.status(200).json({
+      message: "Reviews deleted successfully",
+      success: true,
+    });
   } catch (error: any) {
-    console.error(error);
-    return res.status(200).json({ message: "ERROR", cause: error.message });
+    console.error("Delete reviews error:", error);
+    return res.status(500).json({
+      message: "Error deleting reviews",
+      success: false,
+      error: error.message,
+    });
   }
 };
+
+export const getStats = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const user = await User.findById(res.locals.jwtData.id);
+    if (!user) {
+      return res.status(401).json({
+        message: "User not registered or token is invalid",
+        success: false,
+      });
+    }
+
+    syncDailyReviewWindow(user);
+    await user.save();
+
+    const stats = {
+      totalReviews: user.reviewsCount || 0,
+      totalChats: user.chats.length,
+      criticalIssues: user.chats.filter(
+        (c) => c.severity === "critical"
+      ).length,
+      averageIssuesPerReview:
+        user.reviewsCount > 0
+          ? Math.round(
+              user.chats.reduce((sum, c) => sum + (c.issuesCount || 0), 0) /
+                user.reviewsCount
+            )
+          : 0,
+      languagesReviewed: [
+        ...new Set(
+          user.chats
+            .filter((c) => c.language && c.language !== "plain")
+            .map((c) => c.language)
+        ),
+      ],
+      dailyLimit: DAILY_REVIEW_LIMIT,
+      dailyUsed: user.dailyReviewCount || 0,
+      dailyRemaining: Math.max(DAILY_REVIEW_LIMIT - (user.dailyReviewCount || 0), 0),
+    };
+
+    return res.status(200).json({
+      message: "Stats retrieved successfully",
+      success: true,
+      stats,
+    });
+  } catch (error: any) {
+    console.error("Get stats error:", error);
+    return res.status(500).json({
+      message: "Error retrieving stats",
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
 
 

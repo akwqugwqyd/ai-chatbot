@@ -1,252 +1,657 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
-  Box,
   Avatar,
-  Typography,
+  Box,
   Button,
+  Checkbox,
+  Chip,
+  CircularProgress,
+  FormControlLabel,
   IconButton,
+  Paper,
+  TextField,
+  Tooltip,
+  Typography,
 } from "@mui/material";
-import { useAuth } from "../context/AuthContext";
-import ChatItem from "../components/chat/ChatItem";
+import { blue, red } from "@mui/material/colors";
 import { IoMdSend } from "react-icons/io";
+import {
+  MdAttachFile,
+  MdChevronLeft,
+  MdChevronRight,
+  MdClose,
+  MdCode,
+  MdLink,
+  MdOutlineDelete,
+  MdOutlineReviews,
+} from "react-icons/md";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import CodeReviewItem from "../components/chat/CodeReviewItem";
+import { useAuth } from "../context/AuthContext";
 import {
   deleteUserChats,
   getUserChats,
-  sendChatRequest,
+  getUserStats,
+  sendCodeReviewRequest,
+  sendGithubPrReviewRequest,
 } from "../helpers/api-communicator";
-import toast from "react-hot-toast";
-import { red } from "@mui/material/colors";
 
-type Message = {
+interface CodeReview {
   role: "user" | "assistant";
   content: string;
-};
+  code?: string | null;
+  language?: string | null;
+  fileName?: string | null;
+  severity?: "critical" | "high" | "medium" | "low" | "info" | null;
+  issuesCount?: number;
+  timestamp?: string;
+}
+
+interface Stats {
+  totalReviews: number;
+  totalChats: number;
+  criticalIssues: number;
+  averageIssuesPerReview: number;
+  languagesReviewed: string[];
+  dailyLimit?: number;
+  dailyUsed?: number;
+  dailyRemaining?: number;
+}
+
 
 const Chat = () => {
   const navigate = useNavigate();
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [scrollRef, setScrollRef] = useState<HTMLDivElement | null>(null);
   const auth = useAuth();
-  const [chatMessages, setChatMessages] = useState<Message[]>([]);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [reviews, setReviews] = useState<CodeReview[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [fileName, setFileName] = useState("");
+ // const [language, setLanguage] = useState("auto");
+  const [code, setCode] = useState("");
+  const [reviewSource, setReviewSource] = useState<"code" | "github">("code");
+  const [prUrl, setPrUrl] = useState("");
+  const [postToGithub, setPostToGithub] = useState(false);
+  const [githubToken, setGithubToken] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const dailyRemaining = stats?.dailyRemaining ?? 5;
 
-  const handleSubmit = async () => {
-    const content = inputRef.current?.value.trim() as string;
-    if (!content) return;
-    if (inputRef && inputRef.current) {
-      inputRef.current.value = "";
-      inputRef.current.focus();
+  const initials =
+    auth?.user?.name
+      ?.split(" ")
+      .map((word) => word[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "U";
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const maxSize = 100 * 1024;
+    if (file.size > maxSize) {
+      toast.error("File size must be less than 100KB");
+      return;
     }
-    const newMessage: Message = { role: "user", content };
-    setChatMessages((prev) => [...prev, newMessage]);
 
     try {
-      const chatData = await sendChatRequest(content);
-      setChatMessages((prev) => [...prev, ...chatData.chats]);
-    } catch (err) {
-      toast.error("Failed to send message", { id: "sendmsg" });
+      setCode(await file.text());
+      setFileName(file.name);
+      toast.success(`Loaded ${file.name}`);
+    } catch {
+      toast.error("Failed to read file");
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  const handleDeleteChats = async () => {
+  const handleSubmit = async () => {
+    const trimmedCode = code.trim();
+
+    if (reviewSource === "code" && !trimmedCode) {
+      toast.error("Paste or upload code to review");
+      return;
+    }
+
+    if (reviewSource === "code" && trimmedCode.length < 5) {
+      toast.error("Code must be at least 5 characters");
+      return;
+    }
+
+    if (reviewSource === "github" && !prUrl.trim()) {
+      toast.error("Paste a GitHub pull request URL");
+      return;
+    }
+
+    setLoading(true);
     try {
-      toast.loading("Deleting Chats", { id: "deletechats" });
+      const reviewData =
+        reviewSource === "github"
+          ? await sendGithubPrReviewRequest(
+              prUrl.trim(),
+              trimmedCode,
+              postToGithub,
+              githubToken.trim()
+            )
+          : await sendCodeReviewRequest(trimmedCode, "", fileName);
+      const statsData = await getUserStats();
+
+      setReviews(reviewData.chats);
+      setStats(statsData.stats);
+      setCode("");
+      setFileName("");
+      if (reviewSource === "github") {
+        setPrUrl("");
+        setGithubToken("");
+      }
+      toast.success(
+        reviewSource === "github" && reviewData.githubCommentUrl
+          ? "PR review posted to GitHub"
+          : "Code review completed",
+        { id: "review" }
+      );
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to submit code for review", {
+        id: "review",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearCode = () => {
+    setCode("");
+    setFileName("");
+    if (reviewSource === "github") {
+      setPrUrl("");
+      setGithubToken("");
+      setPostToGithub(false);
+    }
+  };
+
+  const handleDeleteAllReviews = async () => {
+    if (!window.confirm("Delete all saved reviews?")) return;
+
+    try {
+      toast.loading("Deleting reviews...", { id: "delete" });
       await deleteUserChats();
-      setChatMessages([]);
-      toast.success("Deleted Chats Successfully", { id: "deletechats" });
-    } catch (error) {
-      console.log(error);
-      toast.error("Deleting chats failed", { id: "deletechats" });
+      setReviews([]);
+      setStats(null);
+      toast.success("Reviews deleted", { id: "delete" });
+    } catch {
+      toast.error("Failed to delete reviews", { id: "delete" });
     }
   };
 
   useLayoutEffect(() => {
+    if (auth?.isCheckingAuth) return;
     if (auth?.isLoggedIn && auth.user) {
-      toast.loading("Loading Chats", { id: "loadchats" });
-      getUserChats()
-        .then((data) => {
-          setChatMessages([...data.chats]);
-          toast.success("Successfully loaded chats", { id: "loadchats" });
+      Promise.all([getUserChats(), getUserStats()])
+        .then(([chatData, statsData]) => {
+          setReviews(chatData.chats);
+          setStats(statsData.stats);
         })
-        .catch((err) => {
-          console.log(err);
-          toast.error("Loading Failed", { id: "loadchats" });
+        .catch(() => {
+          toast.error("Failed to load reviews");
         });
     }
-  }, [auth]);
+  }, [auth?.isCheckingAuth, auth?.isLoggedIn, auth?.user]);
 
   useEffect(() => {
-    if (!auth?.user) {
+    if (!auth?.isCheckingAuth && !auth?.user) {
       navigate("/login");
     }
-  }, [auth]);
+  }, [auth?.isCheckingAuth, auth?.user, navigate]);
 
-  // auto scroll to bottom when messages change
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [chatMessages]);
+    if (!scrollRef) return;
+    window.setTimeout(() => {
+      scrollRef.scrollTop = scrollRef.scrollHeight;
+    }, 100);
+  }, [reviews, scrollRef]);
 
   return (
-    <Box
-      sx={{
-        height: "calc(100vh - 64px)", // leave room for fixed navbar
-        display: "flex",
-        flexDirection: "column",
-        bgcolor: "background.default",
-      }}
-    >
+    <Box sx={{ height: "calc(100vh - 64px)", bgcolor: "#0d1117", color: "#e6edf3" }}>
       <Box
         component="main"
         sx={{
-          display: "flex",
-          flex: 1,
-          overflow: "hidden", // left/right panels don't scroll
+          height: "100%",
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            lg: sidebarOpen ? "280px minmax(0, 1fr)" : "0 minmax(0, 1fr)",
+          },
+          width: "100%",
+          transition: "grid-template-columns 180ms ease",
         }}
       >
-        {/* left sidebar */}
         <Box
+          component="aside"
           sx={{
-            display: { md: "flex", xs: "none", sm: "none" },
-            flex: "0 0 25%",
+            display: { xs: "none", lg: "flex" },
             flexDirection: "column",
-            bgcolor: "background.paper",
-            p: 3,
-            borderRight: "1px solid #333",
+            bgcolor: "#111820",
+            borderRight: "1px solid #21262d",
+            p: 2,
+            gap: 2,
+            minWidth: 0,
+            overflow: "hidden",
           }}
         >
-          <Avatar
-            sx={{
-              mx: "auto",
-              my: 2,
-              bgcolor: "primary.main",
-              color: "white",
-              fontWeight: 700,
-              width: 56,
-              height: 56,
-            }}
-          >
-            {auth?.user?.name
-              ?.split(" ")
-              .map((word) => word[0])
-              .join("")
-              .toUpperCase()}
-          </Avatar>
-          <Typography sx={{ mx: "auto", fontFamily: "work sans", fontWeight: 600 }}>
-            You are talking to a ChatBOT
-          </Typography>
-          <Typography
-            sx={{
-              mx: "auto",
-              fontFamily: "work sans",
-              my: 2,
-              px: 2,
-              fontSize: "0.85rem",
-              color: "text.secondary",
-              textAlign: "center",
-            }}
-          >
-            Ask questions on Knowledge, Business, Advice, Education, etc. Avoid personal info.
-          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, p: 1 }}>
+            <Avatar sx={{ bgcolor: blue[700], width: 42, height: 42, fontWeight: 800 }}>
+              {initials}
+            </Avatar>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontWeight: 800, lineHeight: 1.2 }}>Code Review</Typography>
+              <Typography sx={{ color: "#8b949e", fontSize: "0.82rem" }}>
+                Review history and quality signals
+              </Typography>
+            </Box>
+          </Box>
+
+          <Paper sx={{ p: 2, bgcolor: "#0d1117", border: "1px solid #30363d", borderRadius: 2 }}>
+            <Typography sx={{ fontWeight: 800, mb: 1.5, fontSize: "0.88rem" }}>
+              Metrics
+            </Typography>
+            {[
+              ["Today", `${stats?.dailyUsed ?? 0}/${stats?.dailyLimit ?? 5}`, blue[200]],
+              ["Reviews", stats?.totalReviews ?? 0, blue[300]],
+              ["Critical issues", stats?.criticalIssues ?? 0, red[300]],
+              ["Avg issues", stats?.averageIssuesPerReview ?? 0, "#e6edf3"],
+            ].map(([label, value, color]) => (
+              <Box
+                key={label}
+                sx={{ display: "flex", justifyContent: "space-between", py: 0.85 }}
+              >
+                <Typography sx={{ color: "#8b949e", fontSize: "0.9rem" }}>{label}</Typography>
+                <Typography sx={{ color, fontWeight: 800 }}>{value}</Typography>
+              </Box>
+            ))}
+          </Paper>
+
+          <Paper sx={{ p: 2, bgcolor: "#0d1117", border: "1px solid #30363d", borderRadius: 2 }}>
+            <Typography sx={{ fontWeight: 800, mb: 1.5, fontSize: "0.88rem" }}>
+              Languages
+            </Typography>
+            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+              {(stats?.languagesReviewed?.length ? stats.languagesReviewed : ["No reviews yet"]).map(
+                (lang) => (
+                  <Chip
+                    key={lang}
+                    label={lang}
+                    size="small"
+                    sx={{ bgcolor: "#21262d", color: "#c9d1d9", maxWidth: "100%" }}
+                  />
+                )
+              )}
+            </Box>
+          </Paper>
+
           <Button
-            onClick={handleDeleteChats}
+            onClick={handleDeleteAllReviews}
+            disabled={reviews.length === 0}
+            startIcon={<MdOutlineDelete />}
             sx={{
-              width: "100%",
               mt: "auto",
-              color: "white",
-              fontWeight: "700",
-              borderRadius: 3,
-              bgcolor: red[300],
-              ":hover": {
-                bgcolor: red.A400,
-              },
+              bgcolor: "rgba(248,81,73,0.12)",
+              color: red[200],
+              border: "1px solid rgba(248,81,73,0.35)",
+              borderRadius: 2,
+              fontWeight: 800,
+              "&:hover": { bgcolor: "rgba(248,81,73,0.18)" },
+              "&:disabled": { bgcolor: "#161b22", color: "#6e7681", borderColor: "#30363d" },
             }}
           >
-            Clear Conversation
+            Clear Reviews
           </Button>
         </Box>
 
-        {/* chat panel */}
         <Box
           sx={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            px: 2,
-            py: 3,
-            bgcolor: "background.paper",
+            minWidth: 0,
+            display: "grid",
+            gridTemplateRows: "auto minmax(0, 1fr)",
+            height: "100%",
+            overflow: "hidden",
           }}
         >
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-            <Typography sx={{ fontSize: "1.2rem", fontWeight: 600 }}>
-              Aether Chat
-            </Typography>
-            <Typography sx={{ fontSize: "0.8rem", color: "text.secondary" }}>
-              GPT‑3.5 Turbo
-            </Typography>
-          </Box>
           <Box
-            ref={scrollRef}
             sx={{
-              flex: 1,
-              borderRadius: 3,
+              px: { xs: 2, md: 3 },
+              py: 2,
+              borderBottom: "1px solid #21262d",
+              bgcolor: "#0d1117",
+              position: "sticky",
+              top: 0,
+              zIndex: 2,
               display: "flex",
-              flexDirection: "column",
-              overflowY: "auto", // only the chat list scrolls
-              scrollBehavior: "smooth",
-              p: 2,
-              bgcolor: "background.paper",
-              border: "1px solid #292929",
-              "&::-webkit-scrollbar": { width: "6px" },
-              "&::-webkit-scrollbar-thumb": { backgroundColor: "#333", borderRadius: 3 },
-            }}
-          >
-            {chatMessages.length === 0 && (
-              <Typography sx={{ color: "#888", textAlign: "center", mt: 4 }}>
-                No messages yet. Say hello 👋
-              </Typography>
-            )}
-            {chatMessages.map((chat, index) => (
-              // @ts-ignore
-              <ChatItem content={chat.content} role={chat.role} key={index} />
-            ))}
-          </Box>
-          <div
-            style={{
-              width: "100%",
-              borderRadius: 8,
-              backgroundColor: "#2c2c2c",
-              display: "flex",
-              margin: "auto",
               alignItems: "center",
-              padding: "0 8px",
+              justifyContent: "space-between",
+              gap: 2,
             }}
           >
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="Type a message and press Enter..."
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSubmit();
-                }
-              }}
-              style={{
-                width: "100%",
-                backgroundColor: "transparent",
-                padding: "20px",
-                border: "none",
-                outline: "none",
-                color: "white",
-                fontSize: "18px",
-              }}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
+              <Tooltip title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}>
+                <IconButton
+                  onClick={() => setSidebarOpen((value) => !value)}
+                  sx={{
+                    display: { xs: "none", lg: "inline-flex" },
+                    color: "#8b949e",
+                    border: "1px solid #30363d",
+                    bgcolor: "#111820",
+                    "&:hover": { color: "#e6edf3", borderColor: "#58a6ff" },
+                  }}
+                >
+                  {sidebarOpen ? <MdChevronLeft /> : <MdChevronRight />}
+                </IconButton>
+              </Tooltip>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography sx={{ fontSize: { xs: "1.1rem", md: "1.35rem" }, fontWeight: 900 }}>
+                  Review Workspace
+                </Typography>
+                <Typography sx={{ color: "#8b949e", fontSize: "0.9rem" }}>
+                  Paste code, upload a file, or review a GitHub pull request.
+                </Typography>
+              </Box>
+            </Box>
+            <Chip
+              icon={<MdOutlineReviews />}
+              label={`${reviews.filter((review) => review.role === "assistant").length} reviews`}
+              sx={{ display: { xs: "none", sm: "inline-flex" }, bgcolor: "#161b22", color: "#c9d1d9" }}
             />
-            <IconButton onClick={handleSubmit} sx={{ color: "white", mx: 1 }}>
-              <IoMdSend />
-            </IconButton>
-          </div>
+          </Box>
+
+          <Box sx={{ minHeight: 0, display: "grid", gridTemplateRows: "minmax(0, 1fr) auto", overflow: "hidden" }}>
+            <Box
+              ref={setScrollRef}
+              sx={{
+                minHeight: 0,
+                overflowY: "auto",
+                px: { xs: 2, md: 3 },
+                py: 2.5,
+                pb: 3,
+                bgcolor: "#0d1117",
+              }}
+            >
+              {reviews.length === 0 ? (
+                <Paper
+                  sx={{
+                    minHeight: 320,
+                    display: "grid",
+                    placeItems: "center",
+                    textAlign: "center",
+                    bgcolor: "#111820",
+                    border: "1px dashed #30363d",
+                    borderRadius: 2,
+                    p: 4,
+                    maxWidth: 760,
+                    mx: "auto",
+                  }}
+                >
+                  <Box>
+                    <Typography sx={{ fontSize: "1.25rem", fontWeight: 900, mb: 1 }}>
+                      Drop code into the composer
+                    </Typography>
+                    <Typography sx={{ color: "#8b949e", maxWidth: 520 }}>
+                      Add instructions in the same box, for example: "Focus on security and race
+                      conditions," then paste the code below it.
+                    </Typography>
+                  </Box>
+                </Paper>
+              ) : (
+                <Box sx={{ display: "grid", gap: 2.25, maxWidth: 920, mx: "auto" }}>
+                  {reviews.map((review, index) => (
+                    <CodeReviewItem key={`${review.role}-${index}`} review={review} />
+                  ))}
+                </Box>
+              )}
+            </Box>
+
+            <Box
+              component="section"
+              sx={{
+                px: { xs: 1.5, md: 3 },
+                pb: { xs: 1.5, md: 2.5 },
+                pt: 1.5,
+                bgcolor: "#0d1117",
+                zIndex: 2,
+              }}
+            >
+              <Paper
+                sx={{
+                  maxWidth: 920,
+                  mx: "auto",
+                  bgcolor: "#111820",
+                  border: "1px solid #30363d",
+                  borderRadius: 3,
+                  overflow: "hidden",
+                  boxShadow: "0 18px 70px rgba(0,0,0,0.32)",
+                }}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    px: 1,
+                    py: 1,
+                    borderBottom: "1px solid #21262d",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  {[
+                    ["code", "Code", <MdCode key="code-icon" />],
+                    ["github", "GitHub PR", <MdLink key="github-icon" />],
+                  ].map(([value, label, icon]) => (
+                    <Button
+                      key={String(value)}
+                      size="small"
+                      startIcon={icon}
+                      onClick={() => setReviewSource(value as "code" | "github")}
+                      sx={{
+                        minHeight: 34,
+                        borderRadius: 2,
+                        px: 1.25,
+                        color: reviewSource === value ? "#07111f" : "#c9d1d9",
+                        bgcolor: reviewSource === value ? blue[400] : "#161b22",
+                        border: "1px solid #30363d",
+                        fontWeight: 800,
+                        "&:hover": {
+                          bgcolor: reviewSource === value ? blue[300] : "#21262d",
+                        },
+                      }}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </Box>
+
+                {reviewSource === "github" && (
+                  <Box sx={{ px: 1.5, pt: 1.25, display: "grid", gap: 1.25 }}>
+                    <TextField
+                      value={prUrl}
+                      onChange={(event) => setPrUrl(event.target.value)}
+                      placeholder="https://github.com/owner/repo/pull/123"
+                      variant="outlined"
+                      size="small"
+                      InputProps={{
+                        startAdornment: <MdLink style={{ marginRight: 8, color: "#8b949e" }} />,
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          color: "#e6edf3",
+                          bgcolor: "#0d1117",
+                          "& fieldset": { borderColor: "#30363d" },
+                          "&:hover fieldset": { borderColor: "#58a6ff" },
+                        },
+                        "& input::placeholder": { color: "#6e7681", opacity: 1 },
+                      }}
+                    />
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.5,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            size="small"
+                            checked={postToGithub}
+                            onChange={(event) => setPostToGithub(event.target.checked)}
+                            sx={{
+                              color: "#8b949e",
+                              "&.Mui-checked": { color: blue[400] },
+                            }}
+                          />
+                        }
+                        label="Post review to PR"
+                        sx={{
+                          color: "#c9d1d9",
+                          m: 0,
+                          "& .MuiFormControlLabel-label": { fontSize: "0.88rem" },
+                        }}
+                      />
+                      {postToGithub && (
+                        <TextField
+                          value={githubToken}
+                          onChange={(event) => setGithubToken(event.target.value)}
+                          placeholder="GitHub token, optional if backend has GITHUB_TOKEN"
+                          type="password"
+                          variant="outlined"
+                          size="small"
+                          sx={{
+                            flex: "1 1 280px",
+                            "& .MuiOutlinedInput-root": {
+                              color: "#e6edf3",
+                              bgcolor: "#0d1117",
+                              "& fieldset": { borderColor: "#30363d" },
+                              "&:hover fieldset": { borderColor: "#58a6ff" },
+                            },
+                            "& input::placeholder": { color: "#6e7681", opacity: 1 },
+                          }}
+                        />
+                      )}
+                    </Box>
+                  </Box>
+                )}
+
+                {fileName && reviewSource === "code" && (
+                  <Box sx={{ px: 1.5, pt: 1.25 }}>
+                    <Chip
+                      label={fileName}
+                      onDelete={() => setFileName("")}
+                      sx={{ bgcolor: "#0f2747", color: "#e6edf3", maxWidth: "100%" }}
+                    />
+                  </Box>
+                )}
+
+                <TextField
+                  value={code}
+                  onChange={(event) => setCode(event.target.value)}
+                  multiline
+                  minRows={2}
+                  maxRows={10}
+                  placeholder={
+                    reviewSource === "github"
+                      ? "Optional review focus...\nExample: Focus on auth bypasses and migration risk."
+                      : "Paste code and review instructions here...\nExample: Focus on auth bypasses, then paste the code below."
+                  }
+                  variant="standard"
+                  InputProps={{ disableUnderline: true }}
+                  sx={{
+                    width: "100%",
+                    px: 1.5,
+                    pt: 1.25,
+                    "& .MuiInputBase-root": {
+                      color: "#e6edf3",
+                      fontFamily: "Consolas, 'SFMono-Regular', monospace",
+                      fontSize: "0.92rem",
+                      lineHeight: 1.55,
+                    },
+                    "& textarea::placeholder": {
+                      color: "#6e7681",
+                      opacity: 1,
+                    },
+                  }}
+                />
+
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    px: 1,
+                    py: 1,
+                    borderTop: "1px solid #21262d",
+                  }}
+                >
+                  <Tooltip title="Attach file">
+                    <span>
+                    <IconButton
+                      component="label"
+                      size="small"
+                      disabled={reviewSource === "github"}
+                      sx={{ color: "#8b949e", "&:hover": { color: "#e6edf3" }, "&:disabled": { color: "#484f58" } }}
+                    >
+                      <MdAttachFile />
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        hidden
+                        onChange={handleFileUpload}
+                        accept=".js,.ts,.jsx,.tsx,.py,.java,.cpp,.cs,.go,.rs,.php,.swift,.kt,.sql,.html,.css,.scss,.json,.xml,.yaml,.yml,.sh"
+                      />
+                    </IconButton>
+                    </span>
+                  </Tooltip>
+
+                  <Box sx={{ flex: 1 }} />
+
+                  {code && (
+                    <Tooltip title="Clear input">
+                      <IconButton
+                        size="small"
+                        onClick={handleClearCode}
+                        sx={{ color: "#8b949e", "&:hover": { color: "#e6edf3" } }}
+                      >
+                        <MdClose />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+
+                  <Tooltip title="Submit review">
+                    <span>
+                      <IconButton
+                        onClick={handleSubmit}
+                        disabled={
+                          loading ||
+                          dailyRemaining <= 0 ||
+                          (reviewSource === "code" && !code.trim()) ||
+                          (reviewSource === "github" && !prUrl.trim())
+                        }
+                        sx={{
+                          width: 38,
+                          height: 38,
+                          bgcolor: blue[500],
+                          color: "#07111f",
+                          "&:hover": { bgcolor: blue[400] },
+                          "&:disabled": { bgcolor: "#21262d", color: "#6e7681" },
+                        }}
+                      >
+                        {loading ? <CircularProgress size={18} /> : <IoMdSend />}
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </Box>
+              </Paper>
+            </Box>
+          </Box>
         </Box>
       </Box>
     </Box>

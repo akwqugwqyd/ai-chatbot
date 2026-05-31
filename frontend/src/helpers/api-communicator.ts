@@ -1,11 +1,11 @@
 import axios from "axios";
+
 export const loginUser = async (email: string, password: string) => {
   const res = await axios.post("/user/login", { email, password });
   if (res.status !== 200) {
     throw new Error("Unable to login");
   }
-  const data = await res.data;
-  return data;
+  return res.data;
 };
 
 export const signupUser = async (
@@ -16,11 +16,10 @@ export const signupUser = async (
   try {
     const res = await axios.post("/user/signup", { name, email, password });
     if (res.status !== 201) {
-      throw new Error("Unable to Signup");
+      throw new Error("Unable to signup");
     }
     return res.data;
   } catch (err: any) {
-    // bubble up server validation errors if any
     if (err.response && err.response.data) {
       throw err.response.data;
     }
@@ -33,27 +32,83 @@ export const checkAuthStatus = async () => {
   if (res.status !== 200) {
     throw new Error("Unable to authenticate");
   }
-  const data = await res.data;
-  return data;
+  return res.data;
 };
 
+export const sendCodeReviewRequest = async (
+  code: string,
+  message?: string,
+  fileName?: string,
+  language?: string
+) => {
+  try {
+    const res = await axios.post("/chat/review", {
+      code,
+      message: message || "",
+      fileName: fileName || "",
+      language: language || "auto",
+    });
+    if (res.status !== 200) {
+      throw new Error("Unable to submit code for review");
+    }
+    return res.data;
+  } catch (err: any) {
+    if (err.response && err.response.data) {
+      throw err;
+    }
+    throw err;
+  }
+};
+
+export const sendGithubPrReviewRequest = async (
+  prUrl: string,
+  message?: string,
+  postToGithub?: boolean,
+  githubToken?: string
+) => {
+  try {
+    const res = await axios.post("/chat/review/github-pr", {
+      prUrl,
+      message: message || "",
+      postToGithub: Boolean(postToGithub),
+      githubToken: githubToken || "",
+    });
+    if (res.status !== 200) {
+      throw new Error("Unable to submit pull request for review");
+    }
+    return res.data;
+  } catch (err: any) {
+    if (err.response && err.response.data) {
+      throw err;
+    }
+    throw err;
+  }
+};
+
+// Legacy chat endpoint - deprecated
 export const sendChatRequest = async (message: string) => {
-  console.log("Sending chat message:", message);
+  console.warn("sendChatRequest is deprecated. Use sendCodeReviewRequest instead.");
   const res = await axios.post("/chat/new", { message });
   if (res.status !== 200) {
     throw new Error("Unable to send chat");
   }
-  const data = await res.data;
-  return data;
+  return res.data;
 };
 
 export const getUserChats = async () => {
   const res = await axios.get("/chat/all-chats");
   if (res.status !== 200) {
-    throw new Error("Unable to send chat");
+    throw new Error("Unable to retrieve chats");
   }
-  const data = await res.data;
-  return data;
+  return res.data;
+};
+
+export const getUserStats = async () => {
+  const res = await axios.get("/chat/stats");
+  if (res.status !== 200) {
+    throw new Error("Unable to retrieve stats");
+  }
+  return res.data;
 };
 
 export const deleteUserChats = async () => {
@@ -61,16 +116,15 @@ export const deleteUserChats = async () => {
   if (res.status !== 200) {
     throw new Error("Unable to delete chats");
   }
-  const data = await res.data;
-  return data;
+  return res.data;
 };
 
 export const logoutUser = async () => {
   const res = await axios.get("/user/logout");
   if (res.status !== 200) {
-    throw new Error("Unable to delete chats");
+    throw new Error("Unable to logout");
   }
-  const data = await res.data;
-  return data;
+  return res.data;
 };
+
 

@@ -7,7 +7,12 @@ import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext.tsx";
 import { Toaster } from "react-hot-toast";
 import axios from "axios";
-axios.defaults.baseURL = "http://localhost:5000/api/v1";
+axios.defaults.baseURL =
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.PROD
+    ? "/_/backend/api/v1"
+    : "http://localhost:5000/api/v1");
+axios.defaults.timeout = Number(import.meta.env.VITE_API_TIMEOUT || 30000);
 axios.defaults.withCredentials = true;
 const theme = createTheme({
   palette: {
@@ -24,8 +29,11 @@ const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: "Roboto Slab,serif",
-    allVariants: { color: "#e0e0e0" },
+    fontFamily: "Work Sans, Arial, sans-serif",
+    button: {
+      textTransform: "none",
+      letterSpacing: 0,
+    },
   },
 });
 ReactDOM.createRoot(document.getElementById("root")!).render(

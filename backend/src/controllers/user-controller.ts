@@ -4,18 +4,30 @@ import { hash, compare } from "bcrypt";
 import { createToken } from "../utils/token-manager.js";
 import { COOKIE_NAME } from "../utils/constants.js";
 
+const getCookieDomain = (): string | undefined => {
+  const domain = process.env.COOKIE_DOMAIN || "localhost";
+  return domain === "localhost" ? undefined : `.${domain}`;
+};
+
 export const getAllUsers = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    //get all users
-    const users = await User.find();
-    return res.status(200).json({ message: "OK", users });
-  } catch (error) {
-    console.log(error);
-    return res.status(200).json({ message: "ERROR", cause: error.message });
+    const users = await User.find().select("-password");
+    return res.status(200).json({
+      success: true,
+      message: "Users retrieved successfully",
+      users,
+    });
+  } catch (error: any) {
+    console.error("Get users error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error retrieving users",
+      error: error.message,
+    });
   }
 };
 
@@ -25,45 +37,67 @@ export const userSignup = async (
   next: NextFunction
 ) => {
   try {
-    //user signup
     const { name, email, password } = req.body;
-    const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(401).send("User already registered");
-    const hashedPassword = await hash(password, 10);
-    const user = new User({ name, email, password: hashedPassword });
-    await user.save();
 
-    // create token and store cookie
-    res.clearCookie(COOKIE_NAME, {
-      httpOnly: true,
-      domain: "localhost",
-      signed: true,
-      path: "/",
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: "User with this email already exists",
+      });
+    }
+
+    // Hash password
+    const hashedPassword = await hash(password, 10);
+
+    // Create user
+    const user = new User({
+      name,
+      email,
+      password: hashedPassword,
     });
 
+    await user.save();
+
+    // Create token
     const token = createToken(user._id.toString(), user.email, "7d");
     const expires = new Date();
     expires.setDate(expires.getDate() + 7);
+
+    // Set cookie
+    res.clearCookie(COOKIE_NAME, {
+      httpOnly: true,
+      domain: getCookieDomain(),
+      signed: true,
+      path: "/",
+    });
+
     res.cookie(COOKIE_NAME, token, {
       path: "/",
-      domain: "localhost",
+      domain: getCookieDomain(),
       expires,
       httpOnly: true,
       signed: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
     });
 
-    return res
-      .status(201)
-      .json({ message: "OK", name: user.name, email: user.email });
-  } catch (error) {
-    console.log(error);
-    return res.status(200).json({ message: "ERROR", cause: error.message });
+    return res.status(201).json({
+      success: true,
+      message: "User created successfully",
+      name: user.name,
+      email: user.email,
+    });
+  } catch (error: any) {
+    console.error("Signup error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error during signup",
+      error: error.message,
+    });
   }
 };
-
-
-
-
 
 export const userLogin = async (
   req: Request,
@@ -71,43 +105,62 @@ export const userLogin = async (
   next: NextFunction
 ) => {
   try {
-    //user login
     const { email, password } = req.body;
+
+    // Find user
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).send("User not registered");
+      return res.status(401).json({
+        success: false,
+        message: "Email or password is incorrect",
+      });
     }
+
+    // Verify password
     const isPasswordCorrect = await compare(password, user.password);
     if (!isPasswordCorrect) {
-      return res.status(403).send("Incorrect Password");
+      return res.status(401).json({
+        success: false,
+        message: "Email or password is incorrect",
+      });
     }
 
-    // create token and store cookie
-
-    res.clearCookie(COOKIE_NAME, {
-      httpOnly: true,
-      domain: "localhost",
-      signed: true,
-      path: "/",
-    });
-
+    // Create token
     const token = createToken(user._id.toString(), user.email, "7d");
     const expires = new Date();
     expires.setDate(expires.getDate() + 7);
+
+    // Set cookie
+    res.clearCookie(COOKIE_NAME, {
+      httpOnly: true,
+      domain: getCookieDomain(),
+      signed: true,
+      path: "/",
+    });
+
     res.cookie(COOKIE_NAME, token, {
       path: "/",
-      domain: "localhost",
+      domain: getCookieDomain(),
       expires,
       httpOnly: true,
       signed: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
     });
 
-    return res
-      .status(200)
-      .json({ message: "OK", name: user.name, email: user.email });
-  } catch (error) {
-    console.log(error);
-    return res.status(200).json({ message: "ERROR", cause: error.message });
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+      name: user.name,
+      email: user.email,
+    });
+  } catch (error: any) {
+    console.error("Login error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error during login",
+      error: error.message,
+    });
   }
 };
 
@@ -117,20 +170,34 @@ export const verifyUser = async (
   next: NextFunction
 ) => {
   try {
-    //user token check
-    const user = await User.findById(res.locals.jwtData.id);
+    const user = await User.findById(res.locals.jwtData.id).select("-password");
     if (!user) {
-      return res.status(401).send("User not registered OR Token malfunctioned");
+      return res.status(401).json({
+        success: false,
+        message: "User not found or token is invalid",
+      });
     }
+
     if (user._id.toString() !== res.locals.jwtData.id) {
-      return res.status(401).send("Permissions didn't match");
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized access",
+      });
     }
-    return res
-      .status(200)
-      .json({ message: "OK", name: user.name, email: user.email });
-  } catch (error) {
-    console.log(error);
-    return res.status(200).json({ message: "ERROR", cause: error.message });
+
+    return res.status(200).json({
+      success: true,
+      message: "User verified",
+      name: user.name,
+      email: user.email,
+    });
+  } catch (error: any) {
+    console.error("Verify user error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error verifying user",
+      error: error.message,
+    });
   }
 };
 
@@ -140,27 +207,38 @@ export const userLogout = async (
   next: NextFunction
 ) => {
   try {
-    //user token check
     const user = await User.findById(res.locals.jwtData.id);
     if (!user) {
-      return res.status(401).send("User not registered OR Token malfunctioned");
+      return res.status(401).json({
+        success: false,
+        message: "User not found or token is invalid",
+      });
     }
+
     if (user._id.toString() !== res.locals.jwtData.id) {
-      return res.status(401).send("Permissions didn't match");
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized access",
+      });
     }
 
     res.clearCookie(COOKIE_NAME, {
       httpOnly: true,
-      domain: "localhost",
+      domain: getCookieDomain(),
       signed: true,
       path: "/",
     });
 
-    return res
-      .status(200)
-      .json({ message: "OK", name: user.name, email: user.email });
-  } catch (error) {
-    console.log(error);
-    return res.status(200).json({ message: "ERROR", cause: error.message });
+    return res.status(200).json({
+      success: true,
+      message: "Logout successful",
+    });
+  } catch (error: any) {
+    console.error("Logout error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error during logout",
+      error: error.message,
+    });
   }
 };

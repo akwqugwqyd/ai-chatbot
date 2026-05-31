@@ -7,7 +7,7 @@ const Logo = () => {
         display: "flex",
         marginRight: "auto",
         alignItems: "center",
-        gap: "15px",
+        gap: "10px",
       }}
     >
       <Link to={"/"}>
@@ -18,18 +18,19 @@ const Logo = () => {
           height={"30px"}
           className="image-inverted"
         />
-      </Link>{" "}
+      </Link>
       <Typography
         className="logo-text"
         sx={{
-          display: { md: "block", sm: "none", xs: "none" },
+          display: "block",
           mr: "auto",
           fontWeight: "800",
           textShadow: "2px 2px 20px #000",
           cursor: "pointer",
+          whiteSpace: "nowrap",
         }}
       >
-        <span style={{ fontSize: "20px" }}>Aether</span>
+        <span style={{ fontSize: "20px" }}>Aether Review</span>
       </Typography>
     </div>
   );
