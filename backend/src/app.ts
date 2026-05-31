@@ -5,6 +5,7 @@ import appRouter from "./routes/index.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import { rateLimiter } from "./middleware/rate-limiter.js";
+import { connectToDatabase } from "./db/connection.js";
 
 config();
 const app = express();
@@ -48,6 +49,18 @@ app.get("/health", (req, res) => {
 });
 
 // API routes
+app.use("/api/v1", async (_req, res, next) => {
+  try {
+    await connectToDatabase();
+    next();
+  } catch (error: any) {
+    console.error("Database connection error:", error);
+    res.status(503).json({
+      success: false,
+      message: "Database is not available. Please try again shortly.",
+    });
+  }
+});
 app.use("/api/v1", appRouter);
 
 // 404 handler

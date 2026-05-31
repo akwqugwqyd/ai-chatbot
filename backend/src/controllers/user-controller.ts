@@ -5,8 +5,30 @@ import { createToken } from "../utils/token-manager.js";
 import { COOKIE_NAME } from "../utils/constants.js";
 
 const getCookieDomain = (): string | undefined => {
-  const domain = process.env.COOKIE_DOMAIN || "localhost";
-  return domain === "localhost" ? undefined : `.${domain}`;
+  const domain = process.env.COOKIE_DOMAIN?.trim();
+
+  if (
+    !domain ||
+    domain === "localhost" ||
+    domain.includes("://") ||
+    domain.includes("yourdomain.com")
+  ) {
+    return undefined;
+  }
+
+  return domain.startsWith(".") ? domain : `.${domain}`;
+};
+
+const getCookieOptions = (expires?: Date) => {
+  return {
+    path: "/",
+    domain: getCookieDomain(),
+    expires,
+    httpOnly: true,
+    signed: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+  };
 };
 
 export const getAllUsers = async (
@@ -66,22 +88,8 @@ export const userSignup = async (
     expires.setDate(expires.getDate() + 7);
 
     // Set cookie
-    res.clearCookie(COOKIE_NAME, {
-      httpOnly: true,
-      domain: getCookieDomain(),
-      signed: true,
-      path: "/",
-    });
-
-    res.cookie(COOKIE_NAME, token, {
-      path: "/",
-      domain: getCookieDomain(),
-      expires,
-      httpOnly: true,
-      signed: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-    });
+    res.clearCookie(COOKIE_NAME, getCookieOptions());
+    res.cookie(COOKIE_NAME, token, getCookieOptions(expires));
 
     return res.status(201).json({
       success: true,
@@ -131,22 +139,8 @@ export const userLogin = async (
     expires.setDate(expires.getDate() + 7);
 
     // Set cookie
-    res.clearCookie(COOKIE_NAME, {
-      httpOnly: true,
-      domain: getCookieDomain(),
-      signed: true,
-      path: "/",
-    });
-
-    res.cookie(COOKIE_NAME, token, {
-      path: "/",
-      domain: getCookieDomain(),
-      expires,
-      httpOnly: true,
-      signed: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-    });
+    res.clearCookie(COOKIE_NAME, getCookieOptions());
+    res.cookie(COOKIE_NAME, token, getCookieOptions(expires));
 
     return res.status(200).json({
       success: true,
@@ -222,12 +216,7 @@ export const userLogout = async (
       });
     }
 
-    res.clearCookie(COOKIE_NAME, {
-      httpOnly: true,
-      domain: getCookieDomain(),
-      signed: true,
-      path: "/",
-    });
+    res.clearCookie(COOKIE_NAME, getCookieOptions());
 
     return res.status(200).json({
       success: true,

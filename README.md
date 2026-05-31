@@ -488,6 +488,8 @@ MAX_PR_DIFF_CHARS=50000
 FRONTEND_URL=https://your-app.vercel.app
 ```
 
+Leave `COOKIE_DOMAIN` unset on Vercel unless you intentionally use multiple subdomains. If you set it, use a bare domain such as `example.com`, not `https://example.com`.
+
 Use this GitHub webhook payload URL:
 
 ```text

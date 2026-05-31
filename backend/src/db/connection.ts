@@ -1,6 +1,7 @@
 import mongoose, { connect, disconnect } from "mongoose";
 
 let connectionPromise: Promise<typeof mongoose> | null = null;
+mongoose.set("bufferCommands", false);
 
 async function connectToDatabase() {
   try {
