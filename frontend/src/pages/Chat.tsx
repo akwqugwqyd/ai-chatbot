@@ -213,7 +213,7 @@ const Chat = () => {
   }, [reviews, scrollRef]);
 
   return (
-    <Box sx={{ height: "calc(100vh - 64px)", bgcolor: "#0d1117", color: "#e6edf3" }}>
+    <Box sx={{ height: { xs: "calc(100vh - 48px)", sm: "calc(100vh - 52px)" }, bgcolor: "#0d1117", color: "#e6edf3" }}>
       <Box
         component="main"
         sx={{
@@ -221,7 +221,7 @@ const Chat = () => {
           display: "grid",
           gridTemplateColumns: {
             xs: "1fr",
-            lg: sidebarOpen ? "280px minmax(0, 1fr)" : "0 minmax(0, 1fr)",
+            lg: sidebarOpen ? "236px minmax(0, 1fr)" : "0 minmax(0, 1fr)",
           },
           width: "100%",
           transition: "grid-template-columns 180ms ease",
@@ -234,26 +234,26 @@ const Chat = () => {
             flexDirection: "column",
             bgcolor: "#111820",
             borderRight: "1px solid #21262d",
-            p: 2,
-            gap: 2,
+            p: 1.5,
+            gap: 1.5,
             minWidth: 0,
             overflow: "hidden",
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, p: 1 }}>
-            <Avatar sx={{ bgcolor: blue[700], width: 42, height: 42, fontWeight: 800 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, p: 0.75 }}>
+            <Avatar sx={{ bgcolor: blue[700], width: 34, height: 34, fontWeight: 800, fontSize: "0.95rem" }}>
               {initials}
             </Avatar>
             <Box sx={{ minWidth: 0 }}>
               <Typography sx={{ fontWeight: 800, lineHeight: 1.2 }}>Code Review</Typography>
-              <Typography sx={{ color: "#8b949e", fontSize: "0.82rem" }}>
+              <Typography sx={{ color: "#8b949e", fontSize: "0.76rem" }}>
                 Review history and quality signals
               </Typography>
             </Box>
           </Box>
 
-          <Paper sx={{ p: 2, bgcolor: "#0d1117", border: "1px solid #30363d", borderRadius: 2 }}>
-            <Typography sx={{ fontWeight: 800, mb: 1.5, fontSize: "0.88rem" }}>
+          <Paper sx={{ p: 1.5, bgcolor: "#0d1117", border: "1px solid #30363d", borderRadius: 2 }}>
+            <Typography sx={{ fontWeight: 800, mb: 1, fontSize: "0.82rem" }}>
               Metrics
             </Typography>
             {[
@@ -264,16 +264,16 @@ const Chat = () => {
             ].map(([label, value, color]) => (
               <Box
                 key={label}
-                sx={{ display: "flex", justifyContent: "space-between", py: 0.85 }}
+                sx={{ display: "flex", justifyContent: "space-between", py: 0.55 }}
               >
-                <Typography sx={{ color: "#8b949e", fontSize: "0.9rem" }}>{label}</Typography>
-                <Typography sx={{ color, fontWeight: 800 }}>{value}</Typography>
+                <Typography sx={{ color: "#8b949e", fontSize: "0.82rem" }}>{label}</Typography>
+                <Typography sx={{ color, fontWeight: 800, fontSize: "0.88rem" }}>{value}</Typography>
               </Box>
             ))}
           </Paper>
 
-          <Paper sx={{ p: 2, bgcolor: "#0d1117", border: "1px solid #30363d", borderRadius: 2 }}>
-            <Typography sx={{ fontWeight: 800, mb: 1.5, fontSize: "0.88rem" }}>
+          <Paper sx={{ p: 1.5, bgcolor: "#0d1117", border: "1px solid #30363d", borderRadius: 2 }}>
+            <Typography sx={{ fontWeight: 800, mb: 1, fontSize: "0.82rem" }}>
               Languages
             </Typography>
             <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
@@ -301,6 +301,8 @@ const Chat = () => {
               border: "1px solid rgba(248,81,73,0.35)",
               borderRadius: 2,
               fontWeight: 800,
+              minHeight: 36,
+              fontSize: "0.82rem",
               "&:hover": { bgcolor: "rgba(248,81,73,0.18)" },
               "&:disabled": { bgcolor: "#161b22", color: "#6e7681", borderColor: "#30363d" },
             }}
@@ -321,7 +323,7 @@ const Chat = () => {
           <Box
             sx={{
               px: { xs: 2, md: 3 },
-              py: 2,
+              py: 1.25,
               borderBottom: "1px solid #21262d",
               bgcolor: "#0d1117",
               position: "sticky",
@@ -330,7 +332,7 @@ const Chat = () => {
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              gap: 2,
+              gap: 1.5,
             }}
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
@@ -342,6 +344,8 @@ const Chat = () => {
                     color: "#8b949e",
                     border: "1px solid #30363d",
                     bgcolor: "#111820",
+                    width: 36,
+                    height: 36,
                     "&:hover": { color: "#e6edf3", borderColor: "#58a6ff" },
                   }}
                 >
@@ -349,10 +353,10 @@ const Chat = () => {
                 </IconButton>
               </Tooltip>
               <Box sx={{ minWidth: 0 }}>
-                <Typography sx={{ fontSize: { xs: "1.1rem", md: "1.35rem" }, fontWeight: 900 }}>
+                <Typography sx={{ fontSize: { xs: "1rem", md: "1.18rem" }, fontWeight: 900 }}>
                   Review Workspace
                 </Typography>
-                <Typography sx={{ color: "#8b949e", fontSize: "0.9rem" }}>
+                <Typography sx={{ color: "#8b949e", fontSize: "0.82rem" }}>
                   Paste code, upload a file, or review a GitHub pull request.
                 </Typography>
               </Box>
@@ -364,15 +368,23 @@ const Chat = () => {
             />
           </Box>
 
-          <Box sx={{ minHeight: 0, display: "grid", gridTemplateRows: "minmax(0, 1fr) auto", overflow: "hidden" }}>
+          <Box
+            sx={{
+              minHeight: 0,
+              display: "grid",
+              gridTemplateRows: "minmax(0, 1fr)",
+              overflow: "hidden",
+              position: "relative",
+            }}
+          >
             <Box
               ref={setScrollRef}
               sx={{
                 minHeight: 0,
                 overflowY: "auto",
                 px: { xs: 2, md: 3 },
-                py: 2.5,
-                pb: 3,
+                py: 2,
+                pb: { xs: 23, md: reviewSource === "github" ? 27 : 19 },
                 bgcolor: "#0d1117",
               }}
             >
@@ -413,11 +425,16 @@ const Chat = () => {
             <Box
               component="section"
               sx={{
-                px: { xs: 1.5, md: 3 },
-                pb: { xs: 1.5, md: 2.5 },
-                pt: 1.5,
-                bgcolor: "#0d1117",
+                position: "absolute",
+                left: 0,
+                right: 0,
+                bottom: 0,
+                px: { xs: 1.25, md: 3 },
+                pb: { xs: 1, md: 1.5 },
+                pt: 1,
+                background: "linear-gradient(180deg, rgba(13,17,23,0), #0d1117 22%)",
                 zIndex: 2,
+                pointerEvents: "none",
               }}
             >
               <Paper
@@ -426,9 +443,10 @@ const Chat = () => {
                   mx: "auto",
                   bgcolor: "#111820",
                   border: "1px solid #30363d",
-                  borderRadius: 3,
+                  borderRadius: 2,
                   overflow: "hidden",
-                  boxShadow: "0 18px 70px rgba(0,0,0,0.32)",
+                  boxShadow: "0 12px 46px rgba(0,0,0,0.36)",
+                  pointerEvents: "auto",
                 }}
               >
                 <Box
@@ -437,7 +455,7 @@ const Chat = () => {
                     alignItems: "center",
                     gap: 1,
                     px: 1,
-                    py: 1,
+                    py: 0.75,
                     borderBottom: "1px solid #21262d",
                     flexWrap: "wrap",
                   }}
@@ -453,7 +471,7 @@ const Chat = () => {
                       onClick={() => setReviewSource(value as "code" | "github")}
                       sx={{
                         minHeight: 34,
-                        borderRadius: 2,
+                        borderRadius: 1.5,
                         px: 1.25,
                         color: reviewSource === value ? "#07111f" : "#c9d1d9",
                         bgcolor: reviewSource === value ? blue[400] : "#161b22",
@@ -542,7 +560,7 @@ const Chat = () => {
                 )}
 
                 {fileName && reviewSource === "code" && (
-                  <Box sx={{ px: 1.5, pt: 1.25 }}>
+                  <Box sx={{ px: 1.25, pt: 1 }}>
                     <Chip
                       label={fileName}
                       onDelete={() => setFileName("")}
@@ -555,8 +573,8 @@ const Chat = () => {
                   value={code}
                   onChange={(event) => setCode(event.target.value)}
                   multiline
-                  minRows={2}
-                  maxRows={10}
+                  minRows={reviewSource === "github" ? 1 : 2}
+                  maxRows={reviewSource === "github" ? 3 : 5}
                   placeholder={
                     reviewSource === "github"
                       ? "Optional review focus...\nExample: Focus on auth bypasses and migration risk."
@@ -566,13 +584,13 @@ const Chat = () => {
                   InputProps={{ disableUnderline: true }}
                   sx={{
                     width: "100%",
-                    px: 1.5,
-                    pt: 1.25,
+                    px: 1.25,
+                    pt: 0.9,
                     "& .MuiInputBase-root": {
                       color: "#e6edf3",
                       fontFamily: "Consolas, 'SFMono-Regular', monospace",
-                      fontSize: "0.92rem",
-                      lineHeight: 1.55,
+                      fontSize: "0.86rem",
+                      lineHeight: 1.45,
                     },
                     "& textarea::placeholder": {
                       color: "#6e7681",
@@ -587,7 +605,7 @@ const Chat = () => {
                     alignItems: "center",
                     gap: 1,
                     px: 1,
-                    py: 1,
+                    py: 0.65,
                     borderTop: "1px solid #21262d",
                   }}
                 >
