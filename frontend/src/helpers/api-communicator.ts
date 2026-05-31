@@ -1,5 +1,7 @@
 import axios from "axios";
 
+const optionalText = (value?: string) => value?.trim() || "";
+
 export const loginUser = async (email: string, password: string) => {
   const res = await axios.post("/user/login", { email, password });
   if (res.status !== 200) {
@@ -44,9 +46,9 @@ export const sendCodeReviewRequest = async (
   try {
     const res = await axios.post("/chat/review", {
       code,
-      message: message || "",
-      fileName: fileName || "",
-      language: language || "auto",
+      message: optionalText(message),
+      fileName: optionalText(fileName),
+      language: optionalText(language) || "auto",
     });
     if (res.status !== 200) {
       throw new Error("Unable to submit code for review");
@@ -69,9 +71,9 @@ export const sendGithubPrReviewRequest = async (
   try {
     const res = await axios.post("/chat/review/github-pr", {
       prUrl,
-      message: message || "",
+      message: optionalText(message),
       postToGithub: Boolean(postToGithub),
-      githubToken: githubToken || "",
+      githubToken: optionalText(githubToken),
     });
     if (res.status !== 200) {
       throw new Error("Unable to submit pull request for review");
