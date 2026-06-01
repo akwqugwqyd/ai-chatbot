@@ -483,7 +483,7 @@ COOKIE_SECRET=your-cookie-secret
 DAILY_REVIEW_LIMIT=5
 GITHUB_TOKEN=your-github-token
 GITHUB_WEBHOOK_SECRET=your-webhook-secret
-GITHUB_WEBHOOK_PROCESS_MODE=sync
+GITHUB_WEBHOOK_PROCESS_MODE=async
 MAX_PR_DIFF_CHARS=50000
 FRONTEND_URL=https://your-app.vercel.app
 ```

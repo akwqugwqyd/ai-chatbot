@@ -3,6 +3,7 @@ import User from "../models/User.js";
 import { configureOpenAI, getAIModel } from "../config/openai-config.js";
 import { createHmac, randomUUID, timingSafeEqual } from "crypto";
 import type { ChatCompletionMessageParam } from "openai/resources/chat";
+import { waitUntil } from "@vercel/functions";
 
 const CODE_REVIEW_SYSTEM_PROMPT = `You are an expert code reviewer with deep knowledge of multiple programming languages, design patterns, and best practices. Your role is to provide thorough, constructive code reviews.
 
@@ -478,10 +479,7 @@ const reviewPullRequestFromWebhook = async ({
 };
 
 const shouldProcessWebhookSynchronously = () => {
-  return (
-    process.env.GITHUB_WEBHOOK_PROCESS_MODE === "sync" ||
-    process.env.VERCEL === "1"
-  );
+  return process.env.GITHUB_WEBHOOK_PROCESS_MODE === "sync";
 };
 
 export const reviewCode = async (
@@ -854,19 +852,23 @@ export const handleGithubWebhook = async (req: Request, res: Response) => {
     }
   }
 
+  const backgroundReview = reviewPullRequestFromWebhook(reviewJob).catch((error) => {
+    console.error(
+      `GitHub webhook review failed for ${owner}/${repo}#${pullNumber}:`,
+      error
+    );
+  });
+
+  if (process.env.VERCEL === "1") {
+    waitUntil(backgroundReview);
+  }
+
   res.status(202).json({
     success: true,
     message: "Pull request review queued",
     repository: payload.repository?.full_name || `${owner}/${repo}`,
     pullNumber,
     action: payload.action,
-  });
-
-  reviewPullRequestFromWebhook(reviewJob).catch((error) => {
-    console.error(
-      `GitHub webhook review failed for ${owner}/${repo}#${pullNumber}:`,
-      error
-    );
   });
 };
 
