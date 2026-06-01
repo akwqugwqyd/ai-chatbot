@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const optionalText = (value?: string) => value?.trim() || "";
+const optionalText = (value?: string) => value?.trim() ?? "";
 
 export const loginUser = async (email: string, password: string) => {
   const res = await axios.post("/user/login", { email, password });
