@@ -24,6 +24,8 @@ type UserAuth = {
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
+
+// Create the AuthContext with default values
 const AuthContext = createContext<UserAuth | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
